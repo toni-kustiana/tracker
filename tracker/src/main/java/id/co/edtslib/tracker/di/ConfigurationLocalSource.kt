@@ -61,7 +61,36 @@ class ConfigurationLocalSource(sharedPreferences: SharedPreferences, app: Applic
                 userId = 0
             )
         }
+        configuration.previousPageName?.let {
+            setPriorPageName(it)
+        }
         configuration.previousPageName = pageName
+        save(configuration)
+    }
+
+    /**
+     * Returns the actual previous page name before the current one was tracked.
+     *
+     * Unlike [getPreviousPageName], which may reflect the current page due to overwrite during [id.co.edtslib.tracker.Tracker.Companion.trackPage],
+     * this method preserves the last known page before tracking occurred.
+     *
+     * Useful for scenarios where page context is needed outside the tracking lifecycle,
+     * such as in Sentinel.
+     */
+    fun getPriorPageName(): String? {
+        val configuration = getCached()
+        return configuration?.priorPageName
+    }
+
+    private fun setPriorPageName(pageName: String) {
+        var configuration = getCached()
+        if (configuration == null) {
+            configuration = Configuration(
+                sessionId = "",
+                userId = 0
+            )
+        }
+        configuration.priorPageName = pageName
         save(configuration)
     }
 

@@ -8,6 +8,7 @@ data class Configuration (
     var longitude: Double? = null,
     var eventId: Long = 1,
     var previousPageName: String? = null,
+    var priorPageName: String? = null,
     var prevPageUrlPath: String? = null,
     var service: String? = null
 )

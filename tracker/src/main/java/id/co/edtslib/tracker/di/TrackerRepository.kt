@@ -133,6 +133,8 @@ class TrackerRepository(
             network = network)
     }
 
+    override fun getPriorPageName() = configurationLocalSource.getPriorPageName()
+
     override fun trackPage(pageName: String, pageId: String, pageUrlPath: String) = flow {
         val previousPageName = configurationLocalSource.getPreviousPageName()
         val prevPageUrlPath = configurationLocalSource.getPrevPageUrlPath()

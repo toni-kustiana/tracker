@@ -52,4 +52,5 @@ class TrackerInteractor(private val repository: ITrackerRepository) : TrackerUse
         repository.trackSearch(keyword, details)
 
     override fun getData() = repository.getData()
+    override fun getPriorPageName() = repository.getPriorPageName()
 }
