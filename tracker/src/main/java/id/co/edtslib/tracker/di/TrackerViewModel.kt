@@ -143,4 +143,6 @@ open class TrackerViewModel(
 
     fun getData() = trackerUseCase.getData()
 
+    fun getPriorPageName() = trackerUseCase.getPriorPageName()
+
 }

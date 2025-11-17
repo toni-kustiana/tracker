@@ -31,4 +31,5 @@ interface TrackerUseCase {
     fun trackSearch(keyword: String, details: Any? = null): Flow<TrackerResponse>
 
     fun getData(): TrackerData
+    fun getPriorPageName(): String?
 }
