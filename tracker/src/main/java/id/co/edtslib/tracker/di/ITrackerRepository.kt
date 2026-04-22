@@ -34,4 +34,5 @@ interface ITrackerRepository {
 
     fun getData(): TrackerData
     fun getPriorPageName(): String?
+    fun setPrevAndPriorPageName(pageName: String)
 }

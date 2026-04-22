@@ -32,4 +32,5 @@ interface TrackerUseCase {
 
     fun getData(): TrackerData
     fun getPriorPageName(): String?
+    fun setPrevAndPriorPageName(pageName: String): Unit
 }
