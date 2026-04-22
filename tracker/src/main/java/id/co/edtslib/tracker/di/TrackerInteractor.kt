@@ -53,4 +53,5 @@ class TrackerInteractor(private val repository: ITrackerRepository) : TrackerUse
 
     override fun getData() = repository.getData()
     override fun getPriorPageName() = repository.getPriorPageName()
+    override fun setPrevAndPriorPageName(pageName: String) = repository.setPrevAndPriorPageName(pageName)
 }
