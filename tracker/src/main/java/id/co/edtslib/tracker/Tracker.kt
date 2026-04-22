@@ -311,6 +311,8 @@ class Tracker private constructor() : KoinComponent {
         }
 
         fun resumePage(pageName: String, pageId: String) {
+            tracker?.trackerViewModel?.setPrevAndPriorPageName(currentPageName)
+
             currentPageName = pageName
             currentPageId = pageId
 
