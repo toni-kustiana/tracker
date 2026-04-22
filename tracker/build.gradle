@@ -66,8 +66,8 @@ dependencies {
     implementation "com.squareup.retrofit2:converter-gson:2.9.0"
     implementation "com.squareup.okhttp3:okhttp:5.0.0-alpha.9"
     implementation "com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.9"
-    implementation "com.facebook.stetho:stetho:1.6.0"
-    implementation "com.facebook.stetho:stetho-okhttp3:1.6.0"
+    debugImplementation "com.facebook.stetho:stetho:1.6.0"
+    debugImplementation "com.facebook.stetho:stetho-okhttp3:1.6.0"
 
     /* security */
     implementation "androidx.security:security-crypto-ktx:1.1.0-alpha03"
