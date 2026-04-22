@@ -28,8 +28,9 @@ val networkingModule = module {
 
 val sharedPreferencesModule = module {
     single(named("trackerSharePref")) {
+        val isDebugStorageEnabled = Tracker.debugging && BuildConfig.DEBUG
         try {
-            if (Tracker.debugging) {
+            if (isDebugStorageEnabled) {
                 PreferenceManager.getDefaultSharedPreferences(androidContext())
             }
             else
@@ -63,15 +64,23 @@ val sharedPreferencesModule = module {
         }
 
         catch (e: Exception) {
-            PreferenceManager.getDefaultSharedPreferences(androidContext())
+            if (isDebugStorageEnabled) {
+                PreferenceManager.getDefaultSharedPreferences(androidContext())
+            } else {
+                throw IllegalStateException("Unable to initialize secure tracker storage", e)
+            }
         }
         catch (e: NoClassDefFoundError) {
-            PreferenceManager.getDefaultSharedPreferences(androidContext())
+            if (isDebugStorageEnabled) {
+                PreferenceManager.getDefaultSharedPreferences(androidContext())
+            } else {
+                throw IllegalStateException("Secure tracker storage dependency missing", e)
+            }
         }
     }
 }
 
-private fun provideOkHttpClient(): OkHttpClient = UnsafeOkHttpClient().get()
+private fun provideOkHttpClient(): OkHttpClient = TrackerOkHttpClient().get()
 
 private fun provideGson(): Gson = Gson()
 

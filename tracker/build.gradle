@@ -12,7 +12,7 @@ afterEvaluate {
         publications {
             // Creates a Maven publication called "release".
             release(MavenPublication) {
-                from components.release
+                from components["release"]
                 groupId = 'id.co.edtslib'
                 artifactId = 'tracker'
                 version = '2.0.0'
