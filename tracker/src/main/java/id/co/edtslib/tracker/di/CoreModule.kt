@@ -1,5 +1,7 @@
 package id.co.edtslib.tracker.di
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -16,7 +18,7 @@ import com.securepreferences.SecurePreferences
 import id.co.edtslib.tracker.BuildConfig
 import id.co.edtslib.tracker.Tracker
 import org.koin.android.ext.koin.androidContext
-import java.lang.Exception
+import androidx.core.content.edit
 
 val networkingModule = module {
     single(named("trackerOkHttp")) { provideOkHttpClient() }
@@ -26,57 +28,80 @@ val networkingModule = module {
     single(named("tracker")) { provideRetrofit(get(named("trackerOkHttp")), get()) }
 }
 
+private const val TRACKER_PREF_FILE = "edts_tracker_secret_shared_prefs"
+
 val sharedPreferencesModule = module {
     single(named("trackerSharePref")) {
-        val isDebugStorageEnabled = Tracker.debugging && BuildConfig.DEBUG
+        provideTrackerPreferences(androidContext())
+    }
+}
+
+private fun provideTrackerPreferences(context: Context): SharedPreferences {
+    if (Tracker.debugging && BuildConfig.DEBUG) {
+        return PreferenceManager.getDefaultSharedPreferences(context)
+    }
+
+    return try {
+        createSecurePreferences(context)
+    } catch (e: NoClassDefFoundError) {
+        throw IllegalStateException("Secure tracker storage dependency missing", e)
+    } catch (_: Throwable) {
+        // The stored Tink keyset can no longer be decrypted by the master key in the Android
+        // Keystore (Keystore reports VERIFICATION_FAILED). This happens when the prefs file
+        // outlives the keystore key - restored backups, device-to-device transfer, or a key
+        // invalidated by a lock screen change. The keyset is unrecoverable, so drop the tracker
+        // prefs and let a fresh keyset be written with the current master key. Only the tracker
+        // file is removed; the master key alias is shared with the host app and is left alone.
+        deleteTrackerPreferences(context)
         try {
-            if (isDebugStorageEnabled) {
-                PreferenceManager.getDefaultSharedPreferences(androidContext())
-            }
-            else
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val spec = KeyGenParameterSpec.Builder(
-                    MasterKey.DEFAULT_MASTER_KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-                )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(MasterKey.DEFAULT_AES_GCM_MASTER_KEY_SIZE)
-                    .build()
-                val masterKey = MasterKey.Builder(androidContext())
-                    .setKeyGenParameterSpec(spec)
-                    .build()
+            createSecurePreferences(context)
+        } catch (retry: Throwable) {
+            throw IllegalStateException("Unable to initialize secure tracker storage", retry)
+        }
+    }
+}
 
-                EncryptedSharedPreferences.create(
-                    androidContext(),
-                    "edts_tracker_secret_shared_prefs",
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
-            } else {
-                SecurePreferences(
-                    androidContext(),
-                    BuildConfig.DB_PASS,
-                    "edts_tracker_secret_shared_prefs"
-                )
-            }
-        }
+private fun createSecurePreferences(context: Context): SharedPreferences =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val spec = KeyGenParameterSpec.Builder(
+            MasterKey.DEFAULT_MASTER_KEY_ALIAS,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        )
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setKeySize(MasterKey.DEFAULT_AES_GCM_MASTER_KEY_SIZE)
+            .build()
+        val masterKey = MasterKey.Builder(context)
+            .setKeyGenParameterSpec(spec)
+            .build()
 
-        catch (e: Exception) {
-            if (isDebugStorageEnabled) {
-                PreferenceManager.getDefaultSharedPreferences(androidContext())
-            } else {
-                throw IllegalStateException("Unable to initialize secure tracker storage", e)
-            }
+        EncryptedSharedPreferences.create(
+            context,
+            TRACKER_PREF_FILE,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } else {
+        SecurePreferences(
+            context,
+            BuildConfig.DB_PASS,
+            TRACKER_PREF_FILE
+        )
+    }
+
+private fun deleteTrackerPreferences(context: Context) {
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            context.deleteSharedPreferences(TRACKER_PREF_FILE)
+        } else {
+            context.getSharedPreferences(TRACKER_PREF_FILE, Context.MODE_PRIVATE)
+                .edit(commit = true) {
+                    clear()
+                }
         }
-        catch (e: NoClassDefFoundError) {
-            if (isDebugStorageEnabled) {
-                PreferenceManager.getDefaultSharedPreferences(androidContext())
-            } else {
-                throw IllegalStateException("Secure tracker storage dependency missing", e)
-            }
-        }
+    } catch (_: Throwable) {
+        // Nothing else to try; the retry below will surface the original failure.
     }
 }
 
