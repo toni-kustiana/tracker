@@ -315,7 +315,7 @@ class TrackerRepository(
         try {
             emit(dispatch(trackerData))
         }
-        catch (ignore: OutOfMemoryError) {
+        catch (_: OutOfMemoryError) {
 
         }
 

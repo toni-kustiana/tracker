@@ -90,9 +90,9 @@ class Tracker private constructor() : KoinComponent {
             token: String,
             path: String = TrackerDestination.DEFAULT_PATH,
             isLegacy: Boolean = false,
-            destinations: List<TrackerDestination> = emptyList()
+            otherDestinations: List<TrackerDestination> = emptyList()
         ) {
-            configure(baseUrl, token, path, isLegacy, destinations)
+            configure(baseUrl, token, path, isLegacy, otherDestinations)
 
             startKoin {
                 androidContext(application.applicationContext)
