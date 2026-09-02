@@ -46,6 +46,30 @@ if you're already using Koin on your application, you can call init on your appl
 fun init(baseUrl: String, token: String, koin: KoinApplication) 
 ```
 
+- To send every event to more than one gateway, pass the extra destinations as the last
+  argument of `init`. The `baseUrl`/`token`/`path`/`isLegacy` arguments describe the first
+  destination; each entry in `destinations` adds another one with its own credentials.
+
+```kotlin
+Tracker.init(
+    this,
+    "https://asia-southeast2-idm-corp-dev.cloudfunctions.net",
+    "fT2vJnJu4dsxTRMphdHE3Z92uwjaBRztGR3ECdRQTEyDDZJGbvGu",
+    destinations = listOf(
+        TrackerDestination(
+            baseUrl = "https://tracker-v2.example.com/",
+            token = "another-token",
+            path = "apps-tracker-gateway-v2"
+        )
+    )
+)
+```
+
+Every event is sent to all destinations in parallel. An event is kept for a later resend
+only under the destinations that failed, so the ones that already accepted it never get a
+duplicate. The response returned to the caller comes from the first destination that
+succeeded.
+
 - Here is all static tracker method, call as Tracker.<mehtod_name>
 
 ```kotlin

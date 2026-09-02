@@ -12,6 +12,7 @@ import id.co.edtslib.baserecyclerview.BaseRecyclerViewAdapter
 import id.co.edtslib.baserecyclerview2.BaseRecyclerView2
 import id.co.edtslib.tracker.data.InstallReferer
 import id.co.edtslib.tracker.data.TrackerData
+import id.co.edtslib.tracker.data.TrackerDestination
 import id.co.edtslib.tracker.data.TrackerFilterDetail
 import id.co.edtslib.tracker.di.TrackerViewModel
 import id.co.edtslib.tracker.di.interactorModule
@@ -39,8 +40,16 @@ class Tracker private constructor() : KoinComponent {
         private var tracker: Tracker? = null
         var baseUrl = ""
         var token = ""
-        var path = "apps-tracker-gateway"
+        var path = TrackerDestination.DEFAULT_PATH
         var isLegacy = false
+
+        /**
+         * Every destination an event is sent to. The first entry is built from the
+         * baseUrl/token/path/isLegacy arguments of [init]; the rest come from its
+         * `destinations` argument.
+         */
+        var destinations: List<TrackerDestination> = emptyList()
+            private set
         var debugging = false
         var resend = true
         var appVersion = "1.0.0"
@@ -52,11 +61,38 @@ class Tracker private constructor() : KoinComponent {
         var currentPageName = ""
         var currentPageId = ""
 
-        fun init(application: Application, baseUrl: String, token: String, path: String = "apps-tracker-gateway", isLegacy: Boolean = false) {
+        private fun configure(
+            baseUrl: String,
+            token: String,
+            path: String,
+            isLegacy: Boolean,
+            others: List<TrackerDestination>
+        ) {
+            // The legacy statics keep describing the primary destination so host apps
+            // reading them keep working.
             Tracker.baseUrl = baseUrl
             Tracker.token = token
             Tracker.path = path
             Tracker.isLegacy = isLegacy
+
+            val primary = TrackerDestination(
+                baseUrl = baseUrl,
+                token = token,
+                path = path,
+                isLegacy = isLegacy
+            )
+            destinations = listOf(primary) + others.filter { it.baseUrl != primary.baseUrl || it.path != primary.path }
+        }
+
+        fun init(
+            application: Application,
+            baseUrl: String,
+            token: String,
+            path: String = TrackerDestination.DEFAULT_PATH,
+            isLegacy: Boolean = false,
+            destinations: List<TrackerDestination> = emptyList()
+        ) {
+            configure(baseUrl, token, path, isLegacy, destinations)
 
             startKoin {
                 androidContext(application.applicationContext)
@@ -77,11 +113,15 @@ class Tracker private constructor() : KoinComponent {
             }
         }
 
-        fun init(baseUrl: String, token: String, koin: KoinApplication, path: String = "apps-tracker-gateway", isLegacy: Boolean = false) {
-            Tracker.baseUrl = baseUrl
-            Tracker.token = token
-            Tracker.path = path
-            Tracker.isLegacy = isLegacy
+        fun init(
+            baseUrl: String,
+            token: String,
+            koin: KoinApplication,
+            path: String = TrackerDestination.DEFAULT_PATH,
+            isLegacy: Boolean = false,
+            destinations: List<TrackerDestination> = emptyList()
+        ) {
+            configure(baseUrl, token, path, isLegacy, destinations)
 
             koin.modules(
                 listOf(

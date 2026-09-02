@@ -12,7 +12,6 @@ import com.google.gson.Gson
 import okhttp3.OkHttpClient
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import com.securepreferences.SecurePreferences
 import id.co.edtslib.tracker.BuildConfig
@@ -24,8 +23,6 @@ val networkingModule = module {
     single(named("trackerOkHttp")) { provideOkHttpClient() }
     single { provideGson() }
     single { provideGsonConverterFactory(get()) }
-
-    single(named("tracker")) { provideRetrofit(get(named("trackerOkHttp")), get()) }
 }
 
 private const val TRACKER_PREF_FILE = "edts_tracker_secret_shared_prefs"
@@ -111,14 +108,3 @@ private fun provideGson(): Gson = Gson()
 
 private fun provideGsonConverterFactory(gson: Gson): GsonConverterFactory =
     GsonConverterFactory.create(gson)
-
-private fun provideRetrofit(
-    okHttpClient: OkHttpClient,
-    converterFactory: GsonConverterFactory
-): Retrofit {
-    return Retrofit.Builder()
-        .baseUrl(Tracker.baseUrl)
-        .client(okHttpClient.newBuilder().addInterceptor(AuthInterceptor(Tracker.token, Tracker.isLegacy)).build())
-        .addConverterFactory(converterFactory)
-        .build()
-}

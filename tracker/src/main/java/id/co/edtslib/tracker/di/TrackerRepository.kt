@@ -11,6 +11,21 @@ class TrackerRepository(
     private val localSource: TrackerLocalDataSource,
     private val configurationLocalSource: ConfigurationLocalSource
 ) : ITrackerRepository {
+
+    /**
+     * Fans [trackerData] out to every destination in parallel and caches the batch under
+     * each destination that failed, so a later resend only targets those. The emitted
+     * response body comes from the first destination that succeeded, and is null when
+     * none did.
+     */
+    private suspend fun dispatch(trackerData: TrackerData): TrackerResponse {
+        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
+        val results = remoteSource.send(trackerDataList)
+
+        results.failedDestinationIds().forEach { localSource.add(it, trackerDataList) }
+
+        return TrackerResponse(Gson().toJson(trackerData), results.firstSuccessBody())
+    }
     override fun createSession() = flow {
         val sessionId = UUID.randomUUID().toString()
         var configuration = configurationLocalSource.getCached()
@@ -104,16 +119,7 @@ class TrackerRepository(
                 configurationLocalSource.getLongitude()),
             marketing = configurationLocalSource.getCached()?.installReferer)
 
-        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
-
-        val response = remoteSource.send(trackerDataList)
-        when(response.status) {
-            Result.Status.SUCCESS -> {}
-            Result.Status.ERROR, Result.Status.UNAUTHORIZED -> {
-                localSource.add(trackerDataList)
-            }
-            else -> {}
-        }
+        dispatch(trackerData)
 
         emit(true)
     }
@@ -163,29 +169,12 @@ class TrackerRepository(
             marketing = configurationLocalSource.getCached()?.installReferer
         )
 
-        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
-
-        val response = remoteSource.send(trackerDataList)
+        val response = dispatch(trackerData)
 
         configurationLocalSource.setPreviousPageName(pageName)
         configurationLocalSource.setPrevPageUrlPath(pageUrlPath)
 
-        when (response.status) {
-            Result.Status.SUCCESS -> emit(
-                TrackerResponse(
-                    Gson().toJson(trackerData),
-                    response.data
-                )
-            )
-            Result.Status.ERROR, Result.Status.UNAUTHORIZED -> {
-                localSource.add(trackerDataList)
-                emit(
-                    TrackerResponse(Gson().toJson(trackerData), null)
-                )
-            }
-            else -> {
-            }
-        }
+        emit(response)
     }
 
     override fun trackPageDetail(detail: Any?) = flow {
@@ -202,19 +191,7 @@ class TrackerRepository(
                 configurationLocalSource.getLongitude()),
             marketing = configurationLocalSource.getCached()?.installReferer)
 
-        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
-
-        val response = remoteSource.send(trackerDataList)
-        when(response.status) {
-            Result.Status.SUCCESS -> emit(TrackerResponse(Gson().toJson(trackerData), response.data))
-            Result.Status.ERROR, Result.Status.UNAUTHORIZED -> {
-                localSource.add(trackerDataList)
-                emit(
-                    TrackerResponse(Gson().toJson(trackerData), null)
-                )
-            }
-            else -> {}
-        }
+        emit(dispatch(trackerData))
     }
 
     override fun trackClick(name: String, category: String?, url: String?, details: Any?) = flow {
@@ -235,19 +212,7 @@ class TrackerRepository(
                 configurationLocalSource.getLongitude()),
             marketing = configurationLocalSource.getCached()?.installReferer)
 
-        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
-
-        val response = remoteSource.send(trackerDataList)
-        when(response.status) {
-            Result.Status.SUCCESS -> emit(TrackerResponse(Gson().toJson(trackerData), response.data))
-            Result.Status.ERROR, Result.Status.UNAUTHORIZED -> {
-                localSource.add(trackerDataList)
-                emit(
-                    TrackerResponse(Gson().toJson(trackerData), null)
-                )
-            }
-            else -> {}
-        }
+        emit(dispatch(trackerData))
     }
 
     override fun trackFilters(filters: List<TrackerFilterDetail>, category: String) = flow {
@@ -265,19 +230,7 @@ class TrackerRepository(
             application = localSource.apps,
             marketing = configurationLocalSource.getCached()?.installReferer)
 
-        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
-
-        val response = remoteSource.send(trackerDataList)
-        when(response.status) {
-            Result.Status.SUCCESS -> emit(TrackerResponse(Gson().toJson(trackerData), response.data))
-            Result.Status.ERROR, Result.Status.UNAUTHORIZED -> {
-                localSource.add(trackerDataList)
-                emit(
-                    TrackerResponse(Gson().toJson(trackerData), null)
-                )
-            }
-            else -> {}
-        }
+        emit(dispatch(trackerData))
     }
 
     override fun trackSort(sortType: String) = flow {
@@ -294,19 +247,7 @@ class TrackerRepository(
                 configurationLocalSource.getLongitude()),
             marketing = configurationLocalSource.getCached()?.installReferer)
 
-        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
-
-        val response = remoteSource.send(trackerDataList)
-        when(response.status) {
-            Result.Status.SUCCESS -> emit(TrackerResponse(Gson().toJson(trackerData), response.data))
-            Result.Status.ERROR, Result.Status.UNAUTHORIZED -> {
-                localSource.add(trackerDataList)
-                emit(
-                    TrackerResponse(Gson().toJson(trackerData), null)
-                )
-            }
-            else -> {}
-        }
+        emit(dispatch(trackerData))
     }
 
     override fun <S, T> trackImpression(category: String, time: Long, data: List<*>, mapper: ((data: S) -> T)?) = flow {
@@ -334,19 +275,7 @@ class TrackerRepository(
                 configurationLocalSource.getLongitude()),
             marketing = configurationLocalSource.getCached()?.installReferer)
 
-        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
-
-        val response = remoteSource.send(trackerDataList)
-        when(response.status) {
-            Result.Status.SUCCESS -> emit(TrackerResponse(Gson().toJson(trackerData), response.data))
-            Result.Status.ERROR, Result.Status.UNAUTHORIZED -> {
-                localSource.add(trackerDataList)
-                emit(
-                    TrackerResponse(Gson().toJson(trackerData), null)
-                )
-            }
-            else -> {}
-        }
+        emit(dispatch(trackerData))
     }
 
     override fun trackSubmission(
@@ -383,20 +312,8 @@ class TrackerRepository(
                 configurationLocalSource.getLongitude()),
             marketing = configurationLocalSource.getCached()?.installReferer)
 
-        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
-
         try {
-            val response = remoteSource.send(trackerDataList)
-            when(response.status) {
-                Result.Status.SUCCESS -> emit(TrackerResponse(Gson().toJson(trackerData), response.data))
-                Result.Status.ERROR, Result.Status.UNAUTHORIZED -> {
-                    localSource.add(trackerDataList)
-                    emit(
-                        TrackerResponse(Gson().toJson(trackerData), null)
-                    )
-                }
-                else -> {}
-            }
+            emit(dispatch(trackerData))
         }
         catch (ignore: OutOfMemoryError) {
 
@@ -420,19 +337,7 @@ class TrackerRepository(
                 configurationLocalSource.getLongitude()),
             marketing = configurationLocalSource.getCached()?.installReferer)
 
-        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
-
-        val response = remoteSource.send(trackerDataList)
-        when(response.status) {
-            Result.Status.SUCCESS -> emit(TrackerResponse(Gson().toJson(trackerData), response.data))
-            Result.Status.ERROR, Result.Status.UNAUTHORIZED -> {
-                localSource.add(trackerDataList)
-                emit(
-                    TrackerResponse(Gson().toJson(trackerData), null)
-                )
-            }
-            else -> {}
-        }
+        emit(dispatch(trackerData))
     }
 
     override fun trackSearch(
@@ -453,19 +358,7 @@ class TrackerRepository(
                 configurationLocalSource.getLongitude()),
             marketing = configurationLocalSource.getCached()?.installReferer)
 
-        val trackerDataList = TrackerDataList(mutableListOf(trackerData))
-
-        val response = remoteSource.send(trackerDataList)
-        when(response.status) {
-            Result.Status.SUCCESS -> emit(TrackerResponse(Gson().toJson(trackerData), response.data))
-            Result.Status.ERROR, Result.Status.UNAUTHORIZED -> {
-                localSource.add(trackerDataList)
-                emit(
-                    TrackerResponse(Gson().toJson(trackerData), null)
-                )
-            }
-            else -> {}
-        }
+        emit(dispatch(trackerData))
     }
 
 }
