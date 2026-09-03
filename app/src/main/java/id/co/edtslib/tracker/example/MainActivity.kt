@@ -31,13 +31,13 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-        val menuListView = findViewById<MenuListView<String>>(R.id.menuListView)
+        /*val menuListView = findViewById<MenuListView<String>>(R.id.menuListView)
         menuListView.data = list
         Tracker.setImpressionRecyclerView<String?, String>("abah test", menuListView) { imp ->
             return@setImpressionRecyclerView imp?.let { String.format("%s manipulated", it) } ?: "null"
         }
 
-        Tracker.trackImpression<String, String>("", list)
+        Tracker.trackImpression<String, String>("", list)*/
 
     }
 
