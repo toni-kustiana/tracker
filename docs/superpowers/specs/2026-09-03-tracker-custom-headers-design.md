@@ -27,7 +27,7 @@ Keduanya berlaku untuk semua destination.
 | Cakupan | Global (satu konfigurasi untuk semua destination), bukan per destination |
 | Header statis | `ConcurrentHashMap` di `Tracker` |
 | Bentuk callback | Mengisi `MutableMap<String, String>`, tanpa return value |
-| Param callback | `destination`, `path`, `request` (`okhttp3.Request`), `headers` |
+| Param callback | `destination`, `request` (`okhttp3.Request`), `headers` — 3 param |
 | Body | TIDAK dibaca library; client membaca sendiri dari `request.body` |
 | Layer | OkHttp `Interceptor` baru, satu instance per destination |
 | Penerapan header | `Request.Builder.header()` (replace), bukan `addHeader()` (append) |
@@ -58,7 +58,6 @@ Callback:
 fun interface TrackerHeaderCallback {
     fun onRequest(
         destination: TrackerDestination,
-        path: String,
         request: Request,                    // okhttp3.Request
         headers: MutableMap<String, String>
     )
@@ -70,7 +69,7 @@ Pemakaian di sisi client:
 ```kotlin
 Tracker.addHeader("x-app-id", "myapp")
 
-Tracker.headerCallback = TrackerHeaderCallback { destination, path, request, headers ->
+Tracker.headerCallback = TrackerHeaderCallback { destination, request, headers ->
     val body = Buffer().also { request.body?.writeTo(it) }.readUtf8()
     headers["x-signature"] = hmacSha256(secretFor(destination.baseUrl), body)
     headers["x-timestamp"] = System.currentTimeMillis().toString()
@@ -78,8 +77,8 @@ Tracker.headerCallback = TrackerHeaderCallback { destination, path, request, hea
 ```
 
 `destination` diberikan utuh (`baseUrl`, `token`, `path`, `isLegacy`, `id`) supaya
-callback global tetap bisa memakai secret yang berbeda per gateway — `path` sendiri
-tidak cukup membedakan karena default-nya sama untuk semua destination.
+callback global tetap bisa memakai secret yang berbeda per gateway. `path` tidak jadi
+parameter terpisah karena sudah tersedia sebagai `destination.path`.
 
 Body tidak dibaca oleh library. Client membacanya sendiri dari `request.body` sehingga
 menandatangani byte yang persis akan dikirim; menyerialisasi ulang payload bertipe akan
@@ -102,7 +101,7 @@ internal object TrackerHeaders {
 
 Alur: salin `staticHeaders` ke `LinkedHashMap` → kalau `callback != null`, panggil
 `onRequest` dengan map itu → kembalikan map. Callback bisa menambah maupun menimpa
-header statis. `path` yang diteruskan ke callback diambil dari `destination.path`.
+header statis.
 
 Seluruh logika dan penanganan error callback ada di sini; ini yang dites.
 
@@ -164,7 +163,7 @@ Mengikuti gaya repo: JUnit murni, fake buatan sendiri, tanpa library mocking.
 - callback bisa menambahkan header baru
 - callback bisa menimpa header statis
 - callback yang melempar exception tidak menggugurkan header statis
-- `destination`, `path`, dan `request` yang benar diteruskan ke callback
+- `destination` dan `request` yang benar diteruskan ke callback
 - tanpa callback dan tanpa header statis, hasilnya map kosong
 
 **`TrackerHeaderInterceptorTest`** — satu fake `Interceptor.Chain` minimal, memastikan
