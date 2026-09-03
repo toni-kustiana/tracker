@@ -14,6 +14,7 @@ import id.co.edtslib.tracker.data.InstallReferer
 import id.co.edtslib.tracker.data.TrackerData
 import id.co.edtslib.tracker.data.TrackerDestination
 import id.co.edtslib.tracker.data.TrackerFilterDetail
+import id.co.edtslib.tracker.di.TrackerHeaderCallback
 import id.co.edtslib.tracker.di.TrackerViewModel
 import id.co.edtslib.tracker.di.interactorModule
 import id.co.edtslib.tracker.di.mainAppModule
@@ -27,6 +28,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.context.startKoin
 import java.util.Date
+import java.util.concurrent.ConcurrentHashMap
 
 class Tracker private constructor() : KoinComponent {
     private val trackerViewModel: TrackerViewModel? by inject()
@@ -50,6 +52,38 @@ class Tracker private constructor() : KoinComponent {
          */
         var destinations: List<TrackerDestination> = emptyList()
             private set
+
+        /**
+         * Headers sent with every tracking request of every destination. Written from
+         * the host app's thread and read from the network thread, hence concurrent.
+         */
+        private val staticHeaders = ConcurrentHashMap<String, String>()
+
+        /** Snapshot of the static headers registered so far. */
+        val headers: Map<String, String>
+            get() = staticHeaders.toMap()
+
+        /** Registers a header, replacing any previous value for the same [name]. */
+        fun addHeader(name: String, value: String) {
+            staticHeaders[name] = value
+        }
+
+        /** Registers every entry of [headers], replacing values for names already set. */
+        fun addHeaders(headers: Map<String, String>) {
+            staticHeaders.putAll(headers)
+        }
+
+        /** Stops sending the header called [name]. No-op when it was never registered. */
+        fun removeHeader(name: String) {
+            staticHeaders.remove(name)
+        }
+
+        /**
+         * Called right before each tracking request is executed, so the host app can add
+         * headers derived from the request — a signature over the body, for instance.
+         * See [TrackerHeaderCallback].
+         */
+        var headerCallback: TrackerHeaderCallback? = null
         var debugging = false
         var resend = true
         var appVersion = "1.0.0"
@@ -119,9 +153,9 @@ class Tracker private constructor() : KoinComponent {
             koin: KoinApplication,
             path: String = TrackerDestination.DEFAULT_PATH,
             isLegacy: Boolean = false,
-            destinations: List<TrackerDestination> = emptyList()
+            otherDestinations: List<TrackerDestination> = emptyList()
         ) {
-            configure(baseUrl, token, path, isLegacy, destinations)
+            configure(baseUrl, token, path, isLegacy, otherDestinations)
 
             koin.modules(
                 listOf(

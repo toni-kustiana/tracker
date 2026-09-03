@@ -25,7 +25,7 @@ Keduanya berlaku untuk semua destination.
 | Aspek | Keputusan |
 |---|---|
 | Cakupan | Global (satu konfigurasi untuk semua destination), bukan per destination |
-| Header statis | `ConcurrentHashMap` di `Tracker` |
+| Header statis | `ConcurrentHashMap` di `Tracker`; `headers` mengembalikan snapshot |
 | Bentuk callback | Mengisi `MutableMap<String, String>`, tanpa return value |
 | Param callback | `destination`, `request` (`okhttp3.Request`), `headers` — 3 param |
 | Body | TIDAK dibaca library; client membaca sendiri dari `request.body` |
@@ -44,7 +44,7 @@ Di `Tracker.Companion`:
 fun addHeader(name: String, value: String)
 fun addHeaders(headers: Map<String, String>)
 fun removeHeader(name: String)
-val headers: Map<String, String>   // read-only view
+val headers: Map<String, String>   // immutable snapshot
 
 var headerCallback: TrackerHeaderCallback? = null
 ```

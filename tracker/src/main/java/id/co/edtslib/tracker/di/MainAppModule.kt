@@ -15,8 +15,8 @@ val mainAppModule = module {
 
 /**
  * One Retrofit-backed endpoint per destination. The OkHttp client, Gson and converter
- * are shared; only the base URL and the auth interceptor differ, so each destination
- * carries its own token and legacy header mode.
+ * are shared; only the base URL and the interceptors differ, so each destination carries
+ * its own token, legacy header mode, and the host app's headers for that destination.
  */
 private fun provideEndpoints(
     okHttpClient: OkHttpClient,
@@ -27,6 +27,7 @@ private fun provideEndpoints(
         .client(
             okHttpClient.newBuilder()
                 .addInterceptor(AuthInterceptor(destination.token, destination.isLegacy))
+                .addInterceptor(TrackerHeaderInterceptor(destination))
                 .build()
         )
         .addConverterFactory(converterFactory)
