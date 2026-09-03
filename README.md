@@ -102,6 +102,18 @@ the `x-api-key`/`Authorization` header the tracker sets itself. The callback run
 network thread; if it throws, the request is still sent with whatever headers were set
 before the exception rather than failing the event.
 
+- To see the requests in logcat, set `Tracker.debugging = true`. Each request is logged
+  as it goes over the wire, so the log shows the full URL, the body, and every header —
+  the static ones, the ones your callback added, and the tracker's own `x-api-key`.
+
+```kotlin
+Tracker.debugging = true
+```
+
+The flag is read per request, so you can turn it on and off at any time after `init`.
+Keep it off in production builds: logcat can be read by other apps on a rooted device,
+and the log includes your token and signature.
+
 - Here is all static tracker method, call as Tracker.<mehtod_name>
 
 ```kotlin

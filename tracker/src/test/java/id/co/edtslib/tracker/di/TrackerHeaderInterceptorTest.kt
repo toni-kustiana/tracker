@@ -2,20 +2,11 @@ package id.co.edtslib.tracker.di
 
 import id.co.edtslib.tracker.Tracker
 import id.co.edtslib.tracker.data.TrackerDestination
-import okhttp3.Call
-import okhttp3.Connection
-import okhttp3.Interceptor
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Protocol
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
-import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
-import java.util.concurrent.TimeUnit
 
 class TrackerHeaderInterceptorTest {
 
@@ -25,41 +16,8 @@ class TrackerHeaderInterceptorTest {
         path = "gateway-a"
     )
 
-    /** Records the request the interceptor hands down the chain. */
-    private class FakeChain(private val request: Request) : Interceptor.Chain {
-        var proceeded: Request? = null
-
-        override fun request() = request
-
-        override fun proceed(request: Request): Response {
-            proceeded = request
-            return Response.Builder()
-                .request(request)
-                .protocol(Protocol.HTTP_1_1)
-                .code(200)
-                .message("OK")
-                .body("".toResponseBody("text/plain".toMediaType()))
-                .build()
-        }
-
-        override fun connection(): Connection? = null
-        override fun call(): Call = throw UnsupportedOperationException()
-        override fun connectTimeoutMillis(): Int = 0
-        override fun readTimeoutMillis(): Int = 0
-        override fun writeTimeoutMillis(): Int = 0
-        override fun withConnectTimeout(timeout: Int, unit: TimeUnit) = this
-        override fun withReadTimeout(timeout: Int, unit: TimeUnit) = this
-        override fun withWriteTimeout(timeout: Int, unit: TimeUnit) = this
-    }
-
-    private fun chain(build: Request.Builder.() -> Unit = {}): FakeChain {
-        val request = Request.Builder()
-            .url("https://a.example.com/gateway-a")
-            .post("""{"events":[]}""".toRequestBody("application/json".toMediaType()))
-            .apply(build)
-            .build()
-        return FakeChain(request)
-    }
+    private fun chain(build: Request.Builder.() -> Unit = {}) =
+        FakeChain(trackingRequest(build = build))
 
     @Before
     fun reset() {

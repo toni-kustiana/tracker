@@ -28,6 +28,9 @@ private fun provideEndpoints(
             okHttpClient.newBuilder()
                 .addInterceptor(AuthInterceptor(destination.token, destination.isLegacy))
                 .addInterceptor(TrackerHeaderInterceptor(destination))
+                // A network interceptor runs after every application interceptor, so the
+                // log shows the request with all of the headers above already applied.
+                .addNetworkInterceptor(TrackerLoggingInterceptor())
                 .build()
         )
         .addConverterFactory(converterFactory)

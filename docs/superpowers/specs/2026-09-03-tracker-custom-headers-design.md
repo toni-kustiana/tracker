@@ -170,6 +170,41 @@ Mengikuti gaya repo: JUnit murni, fake buatan sendiri, tanpa library mocking.
 header benar-benar menempel di request yang diteruskan ke `proceed()`, dan nilai header
 tidak valid tidak menggugurkan header lain.
 
+### 5. Header terlihat di logcat
+
+Sebelum perubahan ini `HttpLoggingInterceptor` dipasang di client dasar
+(`TrackerOkHttpClient`), sedangkan `AuthInterceptor` dan `TrackerHeaderInterceptor`
+ditambahkan sesudahnya di `provideEndpoints`. Urutan application interceptor jadi
+`[logging, auth, headers]`, sehingga logging mencatat request SEBELUM header apa pun
+ditambahkan — baik header baru dari fitur ini maupun `x-api-key` yang sudah ada.
+
+Dua masalah lain pada jalur debug yang sama: level di-set sekali saat client dibuat,
+sehingga `Tracker.debugging` yang diubah setelah `init` tidak berpengaruh; dan gate
+`BuildConfig.DEBUG` merujuk BuildConfig library, yang bernilai `false` pada AAR yang
+dipublish sehingga log tidak pernah menyala di app konsumen.
+
+Keputusan:
+
+| Aspek | Keputusan |
+|---|---|
+| Layer logging | `addNetworkInterceptor`, bukan application interceptor |
+| Gate | `Tracker.debugging` saja; `BuildConfig.DEBUG` dilepas |
+| Waktu baca gate | Per request, di dalam `intercept` |
+
+`TrackerLoggingInterceptor` (`di/TrackerLoggingInterceptor.kt`) membungkus
+`HttpLoggingInterceptor` pada level `BODY` dan mendelegasikan hanya ketika
+`Tracker.debugging` aktif; kalau tidak, langsung `chain.proceed`. `logger`-nya bisa
+di-inject supaya bisa dites tanpa Android. Dipasang di `provideEndpoints` sebagai network
+interceptor, jadi ia berjalan setelah semua application interceptor dan melihat request
+final — termasuk header yang ditambahkan OkHttp sendiri (`Content-Length`, `Host`).
+
+`TrackerOkHttpClient` tinggal membuat client kosong; seluruh interceptor sekarang
+dipasang per destination.
+
+Konsekuensi yang diterima: `Tracker.debugging = true` sekarang benar-benar mencetak token
+dan `x-signature` ke logcat, termasuk pada build release app konsumen. Ini memang tujuan
+perubahannya, dan didokumentasikan di README sebagai hal yang harus dimatikan di produksi.
+
 ## Out of Scope
 
 - Konfigurasi header per destination (cakupan sepakat global).
